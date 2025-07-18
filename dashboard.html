@@ -126,10 +126,12 @@
             padding: 15px;
             margin: 10px 0;
             border-left: 4px solid var(--primary);
+            overflow-x: auto; /* Enable horizontal scrolling for table on small screens */
         }
 
         .medication-table {
             width: 100%;
+            min-width: 600px; /* Ensure table has a minimum width to maintain readability */
             border-collapse: collapse;
             margin-bottom: 10px;
         }
@@ -384,11 +386,11 @@
 
         @media (max-width: 768px) {
             .container {
-                padding: 15px;
+                padding: 10px;
             }
 
             .card {
-                padding: 20px;
+                padding: 15px;
             }
 
             .nav {
@@ -416,8 +418,12 @@
             }
 
             .medication-table th, .medication-table td {
-                font-size: 0.8em;
-                padding: 6px;
+                font-size: 0.75em; /* Further reduce font size for mobile */
+                padding: 4px; /* Reduce padding for mobile */
+            }
+
+            .medication-container {
+                padding: 10px;
             }
         }
     </style>
