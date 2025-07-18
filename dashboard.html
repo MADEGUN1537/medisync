@@ -146,6 +146,12 @@
             color: white;
             font-family: 'Poppins', sans-serif;
             font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .medication-table th:hover {
+            background: #3ca298;
         }
 
         .medication-table td {
@@ -154,6 +160,17 @@
 
         .medication-table .missed-dose {
             color: var(--error);
+        }
+
+        .medication-table .row-details {
+            display: none;
+            background: #f9f9f9;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        .medication-table .row-details.active {
+            display: table-row;
         }
 
         .progress-bar {
@@ -213,6 +230,17 @@
 
         .delete-btn {
             background: var(--error);
+            padding: 8px 16px;
+            margin-left: 10px;
+        }
+
+        .edit-btn {
+            background: #3498db;
+            padding: 8px 16px;
+            margin-left: 10px;
+        }
+
+        .mark-btn {
             padding: 8px 16px;
             margin-left: 10px;
         }
@@ -382,6 +410,21 @@
             color: var(--text);
         }
 
+        .filter-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .filter-container select {
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -415,9 +458,46 @@
                 grid-column: span 1;
             }
 
-            .medication-table th, .medication-table td {
-                font-size: 0.8em;
-                padding: 6px;
+            .medication-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .medication-table thead {
+                display: none;
+            }
+
+            .medication-table tbody, .medication-table tr {
+                display: block;
+            }
+
+            .medication-table td {
+                display: block;
+                text-align: left;
+                padding: 10px;
+                border: none;
+                border-bottom: 1px solid #ddd;
+                position: relative;
+                padding-left: 100px;
+            }
+
+            .medication-table td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: 80px;
+                font-weight: bold;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .medication-table .row-details {
+                display: none;
+                padding: 10px;
+            }
+
+            .medication-table .row-details.active {
+                display: block;
             }
         }
     </style>
@@ -425,7 +505,7 @@
 <body>
     <div class="header">
         <div>
-            <h1> 💊Medisync</h1>
+            <h1>💊 Medisync</h1>
             <p style="font-size: 1em; opacity: 0.9;">Your Health, Our Priority</p>
         </div>
         <button class="logout-btn" id="logout-btn">Logout</button>
@@ -440,6 +520,14 @@
         <div id="medications-page" class="page active">
             <div class="card" id="medication-tracker">
                 <h2>Medication Tracker</h2>
+                <div class="filter-container">
+                    <select id="med-filter">
+                        <option value="all">All Medications</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="completed">Completed</option>
+                        <option value="not taken">Missed</option>
+                    </select>
+                </div>
                 <div id="medication-list"></div>
                 <p class="error-message" id="medication-error"></p>
             </div>
@@ -500,7 +588,7 @@
 
         <div class="modal" id="add-medication-modal">
             <div class="modal-content">
-                <h2>Add Medication</h2>
+                <h2 id="modal-title">Add Medication</h2>
                 <form id="medication-form">
                     <input type="text" id="med-name" placeholder="Medication Name" required>
                     <input type="text" id="med-dosage" placeholder="Dosage" required>
@@ -536,6 +624,9 @@
             let userPhone = null;
             let userId = null;
             let lastVitalsReminderDate = null;
+            let sortColumn = 'name';
+            let sortOrder = 'asc';
+            let filterStatus = 'all';
 
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
@@ -619,9 +710,33 @@
                 }, () => {});
             }
 
-            function showAddMedicationModal() {
-                document.getElementById("add-medication-modal").style.display = "flex";
+            function showAddMedicationModal(med = null) {
+                const modal = document.getElementById("add-medication-modal");
+                const form = document.getElementById("medication-form");
+                const title = document.getElementById("modal-title");
+                const timeInputs = document.getElementById("time-inputs");
                 document.getElementById("medication-form-error").style.display = "none";
+                
+                if (med) {
+                    title.textContent = "Edit Medication";
+                    document.getElementById("med-name").value = med.name;
+                    document.getElementById("med-dosage").value = med.dosage;
+                    document.getElementById("med-frequency").value = med.frequency;
+                    document.getElementById("med-duration").value = med.duration;
+                    timeInputs.innerHTML = med.times.map(time => `
+                        <div class="time-input-container">
+                            <input type="time" class="med-time" value="${time}" required>
+                        </div>
+                    `).join('');
+                    form.setAttribute('data-id', med.id);
+                } else {
+                    title.textContent = "Add Medication";
+                    timeInputs.innerHTML = `<div class="time-input-container"><input type="time" class="med-time" required></div>`;
+                    form.removeAttribute('data-id');
+                    form.reset();
+                }
+                
+                modal.style.display = "flex";
                 updateDurationLabel();
                 gsap.from(".modal-content", { duration: 0.5, scale: 0.8, opacity: 0 });
             }
@@ -643,7 +758,7 @@
                 document.getElementById("duration-unit").textContent = frequency === "daily" ? "days" : "weeks";
             }
 
-            document.getElementById("add-medication-btn").addEventListener("click", showAddMedicationModal);
+            document.getElementById("add-medication-btn").addEventListener("click", () => showAddMedicationModal());
             document.getElementById("cancel-medication-btn").addEventListener("click", () => closeModal("add-medication-modal"));
             document.getElementById("med-frequency").addEventListener("change", updateDurationLabel);
 
@@ -693,10 +808,17 @@
                     endDate: endDate.toISOString(),
                     missedDoses: 0,
                     lastReminder: null,
-                    completedDoses: []
+                    completedDoses: [],
+                    userId: userId
                 };
                 try {
-                    await saveMedicationToFirebase(med);
+                    const form = document.getElementById("medication-form");
+                    if (form.hasAttribute('data-id')) {
+                        const docId = form.getAttribute('data-id');
+                        await setDoc(doc(db, "medications", docId), { ...med, id: docId });
+                    } else {
+                        await saveMedicationToFirebase(med);
+                    }
                     closeModal("add-medication-modal");
                     document.getElementById("medication-form").reset();
                 } catch (error) {
@@ -715,8 +837,35 @@
                 list.innerHTML = "";
                 errorMessage.style.display = "none";
                 const now = new Date();
+
+                // Filter medications
+                let filteredMeds = medications.filter(med => {
+                    if (filterStatus === 'all') return true;
+                    return med.status === filterStatus;
+                });
+
+                // Sort medications
+                filteredMeds.sort((a, b) => {
+                    let valA, valB;
+                    if (sortColumn === 'name') {
+                        valA = a.name.toLowerCase();
+                        valB = b.name.toLowerCase();
+                    } else if (sortColumn === 'status') {
+                        valA = a.status;
+                        valB = b.status;
+                    } else if (sortColumn === 'missedDoses') {
+                        valA = a.missedDoses || 0;
+                        valB = b.missedDoses || 0;
+                    }
+                    if (sortOrder === 'asc') {
+                        return valA > valB ? 1 : -1;
+                    } else {
+                        return valA < valB ? 1 : -1;
+                    }
+                });
+
                 let validMedications = 0;
-                medications.forEach((med, index) => {
+                filteredMeds.forEach((med, index) => {
                     if (!Array.isArray(med.times) || med.times.length === 0 || !med.times.every(time => typeof time === 'string')) {
                         const div = document.createElement("div");
                         div.className = "medication-container";
@@ -724,7 +873,8 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>⚠️ ${med.name} - Invalid times data</span>
                                 <div>
-                                    <button class="btn delete-btn" style="padding: 8px 16px;" data-id="${med.id}">Delete</button>
+                                    <button class="btn edit-btn" data-id="${med.id}">Edit</button>
+                                    <button class="btn delete-btn" data-id="${med.id}">Delete</button>
                                 </div>
                             </div>
                         `;
@@ -757,47 +907,71 @@
                         <table class="medication-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Dosage</th>
-                                    <th>Frequency</th>
+                                    <th data-sort="name">Name</th>
+                                    <th data-sort="dosage">Dosage</th>
+                                    <th data-sort="frequency">Frequency</th>
                                     <th>Times</th>
-                                    <th>Status</th>
+                                    <th data-sort="status">Status</th>
                                     <th>Remaining</th>
-                                    <th>Missed Doses</th>
+                                    <th data-sort="missedDoses">Missed Doses</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>${med.name}</td>
-                                    <td>${med.dosage}</td>
-                                    <td>${med.frequency}</td>
-                                    <td>${timesDisplay}${isTimeToTake ? "" : `, next: ${nextTime || 'N/A'}`}</td>
-                                    <td>${statusIcon} ${med.status}</td>
-                                    <td>${remainingText}</td>
-                                    <td class="missed-dose">${med.missedDoses || 0}</td>
+                                <tr class="med-row" data-id="${med.id}">
+                                    <td data-label="Name">${med.name}</td>
+                                    <td data-label="Dosage">${med.dosage}</td>
+                                    <td data-label="Frequency">${med.frequency}</td>
+                                    <td data-label="Times">${timesDisplay}${isTimeToTake ? "" : `, next: ${nextTime || 'N/A'}`}</td>
+                                    <td data-label="Status">${statusIcon} ${med.status}</td>
+                                    <td data-label="Remaining">${remainingText}</td>
+                                    <td data-label="Missed Doses" class="missed-dose">${med.missedDoses || 0}</td>
+                                </tr>
+                                <tr class="row-details" data-id="${med.id}">
+                                    <td colspan="7">
+                                        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                                            ${isTimeToTake ? `
+                                                <button class="btn mark-btn mark-done-btn" data-index="${index}" data-id="${med.id}">Mark Done</button>
+                                                <button class="btn mark-btn mark-missed-btn" data-index="${index}" data-id="${med.id}" style="background: var(--error);">Mark Missed</button>
+                                            ` : ''}
+                                            <button class="btn edit-btn" data-id="${med.id}">Edit</button>
+                                            <button class="btn delete-btn" data-id="${med.id}">Delete</button>
+                                        </div>
+                                        <div class="progress-bar"><div class="progress" style="width: ${med.progress}%"></div></div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
-                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 10px;">
-                            ${isTimeToTake ? `<button class="btn mark-done-btn" style="padding: 8px 16px;" data-index="${index}" data-id="${med.id}">Mark Done</button>` : ''}
-                            <button class="btn delete-btn" style="padding: 8px 16px;" data-id="${med.id}">Delete</button>
-                        </div>
-                        <div class="progress-bar"><div class="progress" style="width: ${med.progress}%"></div></div>
                     `;
                     list.appendChild(div);
                     gsap.from(div, { duration: 0.5, x: -20, opacity: 0, delay: index * 0.1 });
                 });
-                if (medications.length === 0) {
-                    list.innerHTML = `<p>No medications found. Add a new medication using the "+" button.</p>`;
-                } else if (validMedications === 0 && medications.length > 0) {
+                if (filteredMeds.length === 0) {
+                    list.innerHTML = `<p>No medications found${filterStatus !== 'all' ? ` for "${filterStatus}" status` : ''}. Add a new medication using the "+" button.</p>`;
+                } else if (validMedications === 0 && filteredMeds.length > 0) {
                     errorMessage.textContent = "No valid medications found. Please delete invalid entries or add new medications.";
                     errorMessage.style.display = "block";
                 }
 
+                // Event listeners for interactive elements
                 document.querySelectorAll(".mark-done-btn").forEach(btn => {
                     btn.addEventListener("click", () => {
                         const index = parseInt(btn.getAttribute("data-index"));
                         markCompleted(index);
+                    });
+                });
+
+                document.querySelectorAll(".mark-missed-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const index = parseInt(btn.getAttribute("data-index"));
+                        markMissed(index);
+                    });
+                });
+
+                document.querySelectorAll(".edit-btn").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        const docId = btn.getAttribute("data-id");
+                        const med = medications.find(m => m.id === docId);
+                        if (med) showAddMedicationModal(med);
                     });
                 });
 
@@ -811,6 +985,37 @@
                             errorMessage.style.display = "block";
                         }
                     });
+                });
+
+                document.querySelectorAll(".med-row").forEach(row => {
+                    row.addEventListener("click", () => {
+                        const docId = row.getAttribute("data-id");
+                        const detailsRow = document.querySelector(`.row-details[data-id="${docId}"]`);
+                        const isActive = detailsRow.classList.contains("active");
+                        document.querySelectorAll(".row-details").forEach(dr => dr.classList.remove("active"));
+                        if (!isActive) {
+                            detailsRow.classList.add("active");
+                            gsap.from(detailsRow, { duration: 0.3, height: 0, opacity: 0 });
+                        }
+                    });
+                });
+
+                document.querySelectorAll(".medication-table th[data-sort]").forEach(th => {
+                    th.addEventListener("click", () => {
+                        const column = th.getAttribute("data-sort");
+                        if (sortColumn === column) {
+                            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            sortColumn = column;
+                            sortOrder = 'asc';
+                        }
+                        updateMedicationList();
+                    });
+                });
+
+                document.getElementById("med-filter").addEventListener("change", (e) => {
+                    filterStatus = e.target.value;
+                    updateMedicationList();
                 });
             }
 
@@ -878,6 +1083,22 @@
                 const totalDoses = calculateTotalDoses(med);
                 med.progress = totalDoses > 0 ? (med.completedDoses.length / totalDoses * 100) : 0;
                 med.status = med.progress >= 100 ? "completed" : "upcoming";
+                try {
+                    await setDoc(doc(db, "medications", med.id), med);
+                } catch (error) {
+                    const errorMessage = document.getElementById("medication-error");
+                    errorMessage.textContent = `Failed to update medication status: ${error.message}`;
+                    errorMessage.style.display = "block";
+                }
+            }
+
+            async function markMissed(index) {
+                const med = medications[index];
+                if (!med) return;
+                const now = new Date();
+                med.missedDoses = (med.missedDoses || 0) + 1;
+                med.lastChecked = now.toISOString();
+                med.status = "not taken";
                 try {
                     await setDoc(doc(db, "medications", med.id), med);
                 } catch (error) {
@@ -1123,7 +1344,7 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 doc.setFont("helvetica", "bold");
-                doc.text("Medisync Family Health Report", 10, 10);
+                doc.text("Medisync Health Report", 10, 10);
                 doc.setFont("helvetica", "normal");
                 doc.text(`Generated on: ${new Date().toLocaleString()}`, 10, 20);
                 doc.text("Vitals Log:", 10, 30);
@@ -1225,7 +1446,7 @@
                 await checkMissedMedications();
                 if (now.getDate() % 14 === 0 && now.getHours() === 8 && now.getMinutes() === 0) {
                     if (!lastVitalsReminderDate || (now - new Date(lastVitalsReminderDate)) > 24 * 60 * 60 * 1000) {
-                        await sendSMS("Hey! It’s time to update your vitals on Medisync Family for your health check-in.");
+                        await sendSMS("Hey! It’s time to update your vitals on Medisync for your health check-in.");
                         lastVitalsReminderDate = now.toISOString();
                     }
                 }
