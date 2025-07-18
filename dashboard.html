@@ -1214,7 +1214,9 @@
                     });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     await response.json();
-                } catch (error) {}
+                } catch (error) {
+                    console.error("Error sending SMS:", error.message);
+                }
             }
 
             setInterval(async () => {
