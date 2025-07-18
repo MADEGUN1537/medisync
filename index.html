@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medisync: Your Health, Our Priority</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CB5AB;
+            --accent: #FF8566;
+            --background: #F7F9FA;
+            --text: #333A40;
+            --gradient: linear-gradient(135deg, #4CB5AB, #66d9cc);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .header {
+            background: var(--gradient);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn {
+            background: var(--gradient);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1em;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        footer {
+            background: var(--text);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        footer a {
+            color: white;
+            text-decoration: none;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            padding: 10px 20px;
+            transition: color 0.3s ease;
+        }
+
+        footer a:hover {
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>💊 Medisync</h1>
+        <p style="font-size: 1em; opacity: 0.9;">Your Health, Our Priority</p>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="container">
+        <div class="card">
+            <h2 style="font-size: 2.2em; margin-bottom: 15px;">Welcome to Medisync</h2>
+            <p style="font-size: 1.1em; margin-bottom: 25px;">Effortlessly manage your medication reminders and track your health with a platform designed for simplicity and care.</p>
+            <a href="signup.html" class="btn">Get Started</a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="container">
+        <h3 style="font-size: 1.8em; text-align: center; margin-bottom: 25px;">Why Choose Medisync?</h3>
+        <div class="features-grid">
+            <div class="card">
+                <div style="font-size: 2.5em; margin-bottom: 10px;">⏰</div>
+                <h4 style="font-size: 1.4em; margin-bottom: 10px;">Medication Reminders</h4>
+                <p>Stay on schedule with personalized alerts for your medications.</p>
+            </div>
+            <div class="card">
+                <div style="font-size: 2.5em; margin-bottom: 10px;">📊</div>
+                <h4 style="font-size: 1.4em; margin-bottom: 10px;">Health Tracking</h4>
+                <p>Track vital health metrics to monitor and improve your well-being.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="container">
+        <div class="card" style="background: var(--gradient); color: white;">
+            <h3 style="font-size: 1.8em; margin-bottom: 15px;">Start Your Health Journey</h3>
+            <p style="font-size: 1.1em; margin-bottom: 25px;">Join Medisync today to simplify your medication and health management.</p>
+            <a href="signup.html" class="btn" style="background: var(--accent);">Sign Up Now</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <h4 style="font-size: 1.4em; margin-bottom: 10px;">💊Medisync</h4>
+            <p style="font-size: 0.9em; opacity: 0.9;">Your Health, Our Priority</p>
+            <div style="margin-top: 15px;">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact Us</a>
+            </div>
+            <p style="font-size: 0.9em; margin-top: 15px; opacity: 0.9;">© 2025 Medisync. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // GSAP Animations
+        gsap.from(".header", { duration: 1, y: -50, opacity: 0, ease: "power2.out" });
+        gsap.from(".card", { duration: 1, y: 50, opacity: 0, ease: "power2.out", stagger: 0.2, delay: 0.2 });
+    </script>
+</body>
+</html>

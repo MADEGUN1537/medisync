@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medisync Family: Signup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script type="module" src="firebase.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>💊Medisync</h1>
+        <p style="font-size: 1em; opacity: 0.9;">Your Health, Our Priority</p>
+    </div>
+    <div class="container">
+        <div class="card">
+            <h2>Sign Up</h2>
+            <form id="signup-form">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="tel" id="phone-number" placeholder="Phone Number" required pattern="[0-9]{10,15}">
+                <input type="password" id="password" placeholder="Password" required>
+                <input type="password" id="confirm-password" placeholder="Confirm Password" required>
+                <button type="submit" class="btn">Sign Up</button>
+                <p class="error" id="signup-error"></p>
+            </form>
+            <p>Already have an account? <a href="login.html">Log in</a></p>
+        </div>
+    </div>
+    <script type="module">
+        import { signup } from './firebase.js';
+
+        // GSAP Animation
+        gsap.from(".header", { duration: 1, y: -50, opacity: 0, ease: "power2.out" });
+        gsap.from(".container", { duration: 1, y: 50, opacity: 0, ease: "power2.out", delay: 0.2 });
+
+        // Signup Form Handling
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const phoneNumber = document.getElementById('phone-number').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const errorElement = document.getElementById('signup-error');
+
+            if (password !== confirmPassword) {
+                errorElement.textContent = 'Passwords do not match.';
+                return;
+            }
+
+            try {
+                await signup(email, password, username, phoneNumber);
+                errorElement.textContent = 'Signup successful! Redirecting...';
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+            } catch (error) {
+                errorElement.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>
