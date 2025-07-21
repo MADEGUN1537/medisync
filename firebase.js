@@ -1,16 +1,15 @@
-
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, updatePassword } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, doc, setDoc, serverTimestamp, query, where, onSnapshot, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 // Firebase Configuration
 const firebaseConfig = {
-     apiKey: "AIzaSyCTn42CsUeEk8dlMFC6bHaBWBw8a39VLZs",
-     authDomain: "medisync-f4f0a.firebaseapp.com",
-     projectId: "medisync-f4f0a",
-     storageBucket: "medisync-f4f0a.firebasestorage.app",
-     messagingSenderId: "1005919919082",
-     appId: "1:1005919919082:web:3393e89fd46e1691ad3093"
+    apiKey: "AIzaSyCTn42CsUeEk8dlMFC6bHaBWBw8a39VLZs",
+    authDomain: "medisync-f4f0a.firebaseapp.com",
+    projectId: "medisync-f4f0a",
+    storageBucket: "medisync-f4f0a.firebasestorage.app",
+    messagingSenderId: "1005919919082",
+    appId: "1:1005919919082:web:3393e89fd46e1691ad3093"
 };
 
 // Initialize Firebase
@@ -94,15 +93,16 @@ export async function deleteMedicationFromFirebase(docId) {
     }
 }
 
-// Signup with email, password, username, and phone number
-export async function signup(email, password, username, phoneNumber) {
+// Signup with email, password, first name, last name, and phone number
+export async function signup(email, password, firstName, lastName, phoneNumber) {
     try {
-        console.log('Attempting signup with email:', email);
+        console.log('Attempting signup with email:', email, 'firstName:', firstName, 'lastName:', lastName);
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
         await setDoc(doc(db, "users", user.uid), {
-            username,
+            firstName,
+            lastName,
             email,
             phoneNumber,
             createdAt: serverTimestamp()
@@ -118,9 +118,7 @@ export async function signup(email, password, username, phoneNumber) {
 // Login with email and password
 export async function login(email, password) {
     try {
-        
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
         return userCredential.user;
     } catch (error) {
         console.error('Login error:', error.code, error.message, error.stack);
@@ -142,4 +140,4 @@ export function getCurrentUser() {
 }
 
 // Export Firestore and auth functions
-export { auth, db, getFirestore, collection, query, where, onSnapshot, addDoc, doc, setDoc, serverTimestamp, deleteDoc, getDoc };
+export { auth, db, getFirestore, collection, query, where, onSnapshot, addDoc, doc, setDoc, serverTimestamp, deleteDoc, getDoc, updatePassword };
