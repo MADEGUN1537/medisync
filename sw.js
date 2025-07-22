@@ -3,15 +3,7 @@ const urlsToCache = [
     '/',
     '/dashboard.html',
     '/firebase.js',
-    '/favicon.ico',
-    'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js',
-    'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js',
-    'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js',
-    'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js',
-    'https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&family=Open+Sans:wght@400;600&display=swap'
+    '/favicon.ico'
 ];
 
 // Install event: Cache essential files
@@ -49,11 +41,24 @@ self.addEventListener('activate', event => {
 
 // Fetch event: Serve cached content when offline
 self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    if (url.pathname.includes('/send-sms')) {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                console.error('API fetch failed:', event.request.url);
+                return new Response(JSON.stringify({ status: 'error', message: 'Offline: Unable to send SMS' }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            })
+        );
+        return;
+    }
     event.respondWith(
         caches.match(event.request)
             .then(response => {
                 if (response) {
-                    return response; // Return cached response if available
+                    return response;
                 }
                 return fetch(event.request).then(networkResponse => {
                     if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
@@ -65,8 +70,8 @@ self.addEventListener('fetch', event => {
                             cache.put(event.request, responseToCache);
                         });
                     return networkResponse;
-                }).catch(error => {
-                    console.error('Fetch failed:', error);
+                }).catch(() => {
+                    console.error('Fetch failed:', event.request.url);
                     return caches.match('/dashboard.html');
                 });
             })
