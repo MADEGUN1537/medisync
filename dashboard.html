@@ -1194,62 +1194,61 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("medication-form").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const errorMessage = document.getElementById("medication-form-error");
-        errorMessage.style.display = "none";
-        const timeInputs = document.querySelectorAll(".med-time");
-        const times = Array.from(timeInputs).map(input => input.value). Librairie.filter(time => time);
-        const duration = Number(document.getElementById("med-duration").value);
-        if (times.length === 0) {
-            errorMessage.textContent = "Please add at least one valid time.";
-            errorMessage.style.display = "block";
-            return;
-        }
-        if (isNaN(duration) || duration < 1) {
-            errorMessage.textContent = "Please enter a valid duration (≥1).";
-            errorMessage.style.display = "block";
-            return;
-        }
-        const frequency = document.getElementById("med-frequency").value;
-        const endDate = new Date();
-        if (frequency === "daily") {
-            endDate.setDate(endDate.getDate() + duration);
-        } else {
-            endDate.setDate(endDate.getDate() + duration * 7);
-        }
-        const med = {
-            name: document.getElementById("med-name").value,
-            dosage: document.getElementById("med-dosage").value,
-            frequency: frequency,
-            times: times,
-            status: "upcoming",
-            progress: 0,
-            lastChecked: null,
-            duration: duration,
-            createdAt: new Date().toISOString(),
-            endDate: endDate.toISOString(),
-            missedDoses: 0,
-            lastReminder: null,
-            completedDoses: [],
-            remindedDoses: []
-        };
-        try {
-            await saveMedicationToFirebase(med);
-            closeModal("add-medication-modal");
-            document.getElementById("medication-form").reset();
-            showToast("Medication added successfully");
-            scheduleOfflineReminders();
-        } catch (error) {
-            errorMessage.textContent = error.message.includes("No authenticated user") ? 
-                "Please log in again to save medications." : 
-                error.message.includes("permission-denied") ? 
-                "Permission denied. Please ensure you are logged in with the correct account." : 
-                `Failed to save medication: ${error.message}`;
-            errorMessage.style.display = "block";
-            showToast("Failed to add medication", true);
-        }
-    });
-
+    e.preventDefault();
+    const errorMessage = document.getElementById("medication-form-error");
+    errorMessage.style.display = "none";
+    const timeInputs = document.querySelectorAll(".med-time");
+    const times = Array.from(timeInputs).map(input => input.value).filter(time => time);
+    const duration = Number(document.getElementById("med-duration").value);
+    if (times.length === 0) {
+        errorMessage.textContent = "Please add at least one valid time.";
+        errorMessage.style.display = "block";
+        return;
+    }
+    if (isNaN(duration) || duration < 1) {
+        errorMessage.textContent = "Please enter a valid duration (≥1).";
+        errorMessage.style.display = "block";
+        return;
+    }
+    const frequency = document.getElementById("med-frequency").value;
+    const endDate = new Date();
+    if (frequency === "daily") {
+        endDate.setDate(endDate.getDate() + duration);
+    } else {
+        endDate.setDate(endDate.getDate() + duration * 7);
+    }
+    const med = {
+        name: document.getElementById("med-name").value,
+        dosage: document.getElementById("med-dosage").value,
+        frequency: frequency,
+        times: times,
+        status: "upcoming",
+        progress: 0,
+        lastChecked: null,
+        duration: duration,
+        createdAt: new Date().toISOString(),
+        endDate: endDate.toISOString(),
+        missedDoses: 0,
+        lastReminder: null,
+        completedDoses: [],
+        remindedDoses: []
+    };
+    try {
+        await saveMedicationToFirebase(med);
+        closeModal("add-medication-modal");
+        document.getElementById("medication-form").reset();
+        showToast("Medication added successfully");
+        scheduleOfflineReminders();
+    } catch (error) {
+        errorMessage.textContent = error.message.includes("No authenticated user") ? 
+            "Please log in again to save medications." : 
+            error.message.includes("permission-denied") ? 
+            "Permission denied. Please ensure you are logged in with the correct account." : 
+            `Failed to save medication: ${error.message}`;
+        errorMessage.style.display = "block";
+        showToast("Failed to add medication", true);
+    }
+});
     function updateMedicationList() {
         const list = document.getElementById("medication-list");
         const errorMessage = document.getElementById("medication-error");
