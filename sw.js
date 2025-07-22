@@ -1,9 +1,9 @@
-
 const CACHE_NAME = 'medisync-cache-v1';
 const urlsToCache = [
     '/',
     '/dashboard.html',
     '/firebase.js',
+    '/favicon.ico',
     'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js',
     'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js',
     'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js',
@@ -26,6 +26,7 @@ self.addEventListener('install', event => {
                 console.error('Cache addAll failed:', error);
             })
     );
+    self.skipWaiting();
 });
 
 // Activate event: Clean up old caches
@@ -43,6 +44,7 @@ self.addEventListener('activate', event => {
             );
         })
     );
+    self.clients.claim();
 });
 
 // Fetch event: Serve cached content when offline
@@ -57,7 +59,6 @@ self.addEventListener('fetch', event => {
                     if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
                         return networkResponse;
                     }
-                    // Clone the response and cache it
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME)
                         .then(cache => {
@@ -66,9 +67,37 @@ self.addEventListener('fetch', event => {
                     return networkResponse;
                 }).catch(error => {
                     console.error('Fetch failed:', error);
-                    // Optional: Return a fallback page or response for offline
                     return caches.match('/dashboard.html');
                 });
             })
+    );
+});
+
+// Message event: Handle medication reminders
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SCHEDULE_REMINDERS') {
+        const reminders = event.data.reminders || [];
+        reminders.forEach(reminder => {
+            const reminderTime = new Date(reminder.reminderTime);
+            const now = new Date();
+            const delay = reminderTime - now;
+            if (delay > 0) {
+                setTimeout(() => {
+                    self.registration.showNotification('Medication Reminder', {
+                        body: `Time to take ${reminder.name} (${reminder.dosage}) at ${reminder.time}`,
+                        icon: '/favicon.ico',
+                        data: { medId: reminder.medId, name: reminder.name, dosage: reminder.dosage, time: reminder.time }
+                    });
+                }, delay);
+            }
+        });
+    }
+});
+
+// Notification click event: Open dashboard on click
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow('/dashboard.html')
     );
 });
