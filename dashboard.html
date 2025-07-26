@@ -1643,94 +1643,186 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function analyzeVitals() {
-        const insights = document.getElementById("insights-content");
-        insights.innerHTML = "";
-        if (vitalsData.length === 0 && medications.length === 0) {
-            insights.innerHTML = `<p style="text-align: center; color: var(--text); opacity: 0.7;">No vitals or medication data available. Please log vitals or add medications to receive insights.</p>`;
-            gsap.from(insights, { duration: 0.5, opacity: 0, y: 20, ease: "power2.out" });
+    const insights = document.getElementById("insights-content");
+    insights.innerHTML = "";
+    if (vitalsData.length === 0 && medications.length === 0) {
+        insights.innerHTML = `<p style="text-align: center; color: var(--text); opacity: 0.7;">No vitals or medication data available. Please log vitals or add medications to receive insights.</p>`;
+        gsap.from(insights, { duration: 0.5, opacity: 0, y: 20, ease: "power2.out" });
+        return;
+    }
+
+    insights.innerHTML = `
+        <h3>Health Summary</h3>
+        <p>Insights based on your recent vitals and medication adherence as of ${new Date().toLocaleDateString()}.</p>
+    `;
+
+    // Medication Adherence
+    if (medications.length > 0) {
+        const completedMeds = medications.filter(m => m.status === "completed").length;
+        const totalMissedDoses = medications.reduce((sum, m) => sum + (m.missedDoses || 0), 0);
+        const totalDoses = medications.reduce((sum, m) => sum + calculateTotalDoses(m), 0);
+        const completedDoses = medications.reduce((sum, m) => sum + (m.completedDoses ? m.completedDoses.length : 0), 0);
+        const adherenceRate = totalDoses > 0 ? (completedDoses / totalDoses * 100).toFixed(1) : 0;
+        const overdueMeds = medications.filter(m => m.endDate && new Date(m.endDate) < new Date() && m.status !== "completed");
+
+        insights.innerHTML += `
+            <h4>Medication Adherence</h4>
+            <p><strong>Adherence Rate:</strong> ${adherenceRate}% (${completedDoses} of ${totalDoses} doses completed)</p>
+            <p><strong>Total Missed Doses:</strong> ${totalMissedDoses}</p>
+            ${adherenceRate < 80 ? "<p style='color: var(--error);'>⚠️ Your adherence rate is below 80%. Consistent medication intake is crucial. Set reminders or consult your doctor.</p>" : "<p style='color: var(--success);'>✅ Excellent adherence! Keep up the consistent schedule.</p>"}
+            ${overdueMeds.length > 0 ? `<p style='color: var(--error);'>⚠️ Overdue Medications: ${overdueMeds.map(m => m.name).join(", ")}. Duration ended. Review with your doctor.</p>` : ""}
+        `;
+
+        if (overdueMeds.length > 0 && userPhone) {
+            const message = `Overdue: ${overdueMeds.map(m => m.name).join(", ")} duration ended on ${new Date(overdueMeds[0].endDate).toLocaleDateString()}. Consult your doctor.`;
+            await sendSMS(message);
+        }
+    }
+
+    // Vitals Analysis (last 7 days or 5 entries)
+    if (vitalsData.length > 0) {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const recentVitals = vitalsData.filter(v => new Date(v.timestamp) >= sevenDaysAgo).slice(-5);
+        if (recentVitals.length === 0) {
+            insights.innerHTML += `<p style="color: var(--error);">⚠️ No recent vitals (last 7 days). Log vitals daily for accurate insights.</p>`;
             return;
         }
-        insights.innerHTML = `
-            <h3>Health Summary</h3>
-            <p>The following insights are based on your recent vitals and medication adherence data as of ${new Date().toLocaleDateString()}.</p>
-        `;
-        
-        if (medications.length > 0) {
-            const completedMeds = medications.filter(m => m.status === "completed").length;
-            const totalMissedDoses = medications.reduce((sum, m) => sum + (m.missedDoses || 0), 0);
-            const totalDoses = medications.reduce((sum, m) => sum + calculateTotalDoses(m), 0);
-            const completedDoses = medications.reduce((sum, m) => sum + (m.completedDoses ? m.completedDoses.length : 0), 0);
-            const adherenceRate = totalDoses > 0 ? (completedDoses / totalDoses * 100).toFixed(1) : 0;
-            const overdueMeds = medications.filter(m => m.endDate && new Date(m.endDate) < new Date() && m.status !== "completed");
-            insights.innerHTML += `
-                <h4>Medication Adherence</h4>
-                <p><strong>Adherence Rate:</strong> ${adherenceRate}% (${completedDoses} of ${totalDoses} doses marked as completed).</p>
-                <p><strong>Total Missed Doses:</strong> ${totalMissedDoses}</p>
-                ${adherenceRate < 80 ? "<p style='color: var(--error);'>⚠️ Your adherence rate is below 80%. Consistent medication intake is crucial for effective treatment. Consider setting reminders or consulting your healthcare provider.</p>" : "<p style='color: var(--success);'>✅ Excellent adherence! Keep up the consistent medication schedule.</p>"}
-                ${overdueMeds.length > 0 ? `<p style='color: var(--error);'>⚠️ Overdue Medications: ${overdueMeds.map(m => m.name).join(", ")}. These medications have passed their duration. Please review with your doctor.</p>` : ""}
-            `;
-            if (overdueMeds.length > 0) {
-                const message = `Overdue: ${overdueMeds.map(m => m.name).join(", ")} duration ended on ${new Date(overdueMeds[0].endDate).toLocaleDateString()}. Consult your doctor.`;
-                await sendSMS(message);
-            }
+
+        // Calculate averages
+        const avgSystolic = recentVitals.reduce((sum, v) => sum + v.systolic, 0) / recentVitals.length;
+        const avgDiastolic = recentVitals.reduce((sum, v) => sum + v.diastolic, 0) / recentVitals.length;
+        const avgSugar = recentVitals.reduce((sum, v) => sum + v.sugar, 0) / recentVitals.length;
+        const avgHeartRate = recentVitals.reduce((sum, v) => sum + v.heartRate, 0) / recentVitals.length;
+        const avgTemp = recentVitals.reduce((sum, v) => sum + v.temp, 0) / recentVitals.length;
+        const weightChanges = recentVitals.length > 1 ? Math.abs(recentVitals[recentVitals.length - 1].weight - recentVitals[0].weight) / recentVitals[0].weight * 100 : 0;
+
+        // Count abnormal readings
+        const bpStatus = recentVitals.map(v => {
+            if (v.systolic >= 180 || v.diastolic >= 120) return "crisis";
+            if (v.systolic >= 140 || v.diastolic >= 90) return "stage2";
+            if (v.systolic >= 130 || v.diastolic >= 80) return "stage1";
+            if (v.systolic >= 120 && v.diastolic < 80) return "elevated";
+            return "normal";
+        });
+        const sugarStatus = recentVitals.map(v => {
+            if (v.sugar < 54 || v.sugar > 250) return "critical";
+            if (v.sugar < 70) return "low";
+            if (v.sugar > 140) return "high";
+            return "normal";
+        });
+        const heartRateStatus = recentVitals.map(v => {
+            if (v.heartRate < 60) return "low";
+            if (v.heartRate > 100) return "high";
+            return "normal";
+        });
+        const tempStatus = recentVitals.map(v => {
+            if (v.temp < 35 || v.temp > 38.5) return "critical";
+            if (v.temp < 36.1) return "low";
+            if (v.temp > 37.2) return "high";
+            return "normal";
+        });
+
+        // Generate insights
+        let bpInsight = "";
+        const crisisBPCount = bpStatus.filter(s => s === "crisis").length;
+        const stage2BPCount = bpStatus.filter(s => s === "stage2").length;
+        const stage1BPCount = bpStatus.filter(s => s === "stage1").length;
+        const elevatedBPCount = bpStatus.filter(s => s === "elevated").length;
+        if (crisisBPCount > 0) {
+            bpInsight = "<p style='color: var(--error);'>🚨 Hypertensive crisis detected (BP ≥180/≥120 mmHg). Seek immediate medical attention.</p>";
+        } else if (stage2BPCount >= recentVitals.length / 2) {
+            bpInsight = "<p style='color: var(--error);'>⚠️ Stage 2 hypertension detected (BP ≥140/≥90 mmHg) in most readings. Consult a doctor, reduce salt, and manage stress.</p>";
+        } else if (stage1BPCount >= recentVitals.length / 2) {
+            bpInsight = "<p style='color: var(--error);'>⚠️ Stage 1 hypertension detected (BP 130–139/80–89 mmHg) in most readings. Monitor daily and consult a doctor.</p>";
+        } else if (elevatedBPCount >= recentVitals.length / 2) {
+            bpInsight = "<p style='color: var(--error);'>⚠️ Elevated BP detected (120–129/<80 mmHg) in most readings. Maintain healthy lifestyle and monitor.</p>";
+        } else {
+            bpInsight = "<p style='color: var(--success);'>✅ Blood pressure is within normal range (<120/<80 mmHg).</p>";
         }
 
-        if (vitalsData.length > 0) {
-            const recentVitals = vitalsData.slice(-5);
-            const avgSystolic = recentVitals.reduce((sum, v) => sum + v.systolic, 0) / recentVitals.length;
-            const avgDiastolic = recentVitals.reduce((sum, v) => sum + v.diastolic, 0) / recentVitals.length;
-            const avgSugar = recentVitals.reduce((sum, v) => sum + v.sugar, 0) / recentVitals.length;
-            const avgHeartRate = recentVitals.reduce((sum, v) => sum + v.heartRate, 0) / recentVitals.length;
-            const avgWeight = recentVitals.reduce((sum, v) => sum + v.weight, 0) / recentVitals.length;
-            const avgTemp = recentVitals.reduce((sum, v) => sum + v.temp, 0) / recentVitals.length;
+        let sugarInsight = "";
+        const criticalSugarCount = sugarStatus.filter(s => s === "critical").length;
+        const lowSugarCount = sugarStatus.filter(s => s === "low").length;
+        const highSugarCount = sugarStatus.filter(s => s === "high").length;
+        if (criticalSugarCount > 0) {
+            sugarInsight = "<p style='color: var(--error);'>🚨 Critical blood sugar detected (<54 or >250 mg/dL). Take immediate action (e.g., juice for low, avoid sugar for high) and seek medical advice.</p>";
+        } else if (lowSugarCount >= recentVitals.length / 2) {
+            sugarInsight = "<p style='color: var(--error);'>⚠️ Low blood sugar detected (<70 mg/dL) in most readings. Consume carbohydrates and consult a doctor.</p>";
+        } else if (highSugarCount >= recentVitals.length / 2) {
+            sugarInsight = "<p style='color: var(--error);'>⚠️ High blood sugar detected (>140 mg/dL) in most readings. Avoid sugary foods and consult a doctor.</p>";
+        } else {
+            sugarInsight = "<p style='color: var(--success);'>✅ Blood sugar is within normal range (70–140 mg/dL).</p>";
+        }
 
-            const highBPCount = vitalsData.filter(v => v.systolic >= 130 || v.diastolic >= 80).length;
-            const criticalBPCount = vitalsData.filter(v => v.systolic >= 180 || v.diastolic >= 120).length;
-            const lowSugarCount = vitalsData.filter(v => v.sugar < 54).length;
-            const highSugarCount = vitalsData.filter(v => v.sugar > 180).length;
-            const highHeartRateCount = vitalsData.filter(v => v.heartRate > 100).length;
-            const lowHeartRateCount = vitalsData.filter(v => v.heartRate < 60).length;
-            const weightChanges = recentVitals.length > 1 ? Math.abs(recentVitals[recentVitals.length - 1].weight - recentVitals[0].weight) / recentVitals[0].weight * 100 : 0;
-            const highTempCount = vitalsData.filter(v => v.temp > 37.2).length;
-            const lowTempCount = vitalsData.filter(v => v.temp < 36.1).length;
+        let heartRateInsight = "";
+        const lowHeartRateCount = heartRateStatus.filter(s => s === "low").length;
+        const highHeartRateCount = heartRateStatus.filter(s => s === "high").length;
+        if (lowHeartRateCount >= recentVitals.length / 2) {
+            heartRateInsight = "<p style='color: var(--error);'>⚠️ Low heart rate detected (<60 bpm) in most readings. Consult a doctor, especially if you feel dizzy.</p>";
+        } else if (highHeartRateCount >= recentVitals.length / 2) {
+            heartRateInsight = "<p style='color: var(--error);'>⚠️ High heart rate detected (>100 bpm) in most readings. Avoid stimulants and consult a doctor.</p>";
+        } else {
+            heartRateInsight = "<p style='color: var(--success);'>✅ Heart rate is within normal range (60–100 bpm).</p>";
+        }
 
-            insights.innerHTML += `
-                <h4>Vital Signs Analysis</h4>
-                <p><strong>Average Blood Pressure (last ${recentVitals.length} entries):</strong> ${avgSystolic.toFixed(1)}/${avgDiastolic.toFixed(1)} mmHg (Normal: <120/<80 mmHg)</p>
-                <p><strong>Average Blood Sugar:</strong> ${avgSugar.toFixed(1)} mg/dL (Normal: 70-140 mg/dL)</p>
-                <p><strong>Average Heart Rate:</strong> ${avgHeartRate.toFixed(1)} bpm (Normal: 60-100 bpm)</p>
-                <p><strong>Average Weight:</strong> ${avgWeight.toFixed(1)} kg (Normal varies by individual)</p>
-                <p><strong>Average Temperature:</strong> ${avgTemp.toFixed(1)} °C (Normal: 36.1-37.2 °C)</p>
-                ${criticalBPCount >= 1 ? "<p style='color: var(--error);'>🚨 Hypertensive crisis detected (BP ≥180/≥120 mmHg). Seek immediate medical attention.</p>" : highBPCount >= 3 ? "<p style='color: var(--error);'>⚠️ High blood pressure detected in 3 or more readings (BP ≥130/≥80 mmHg). Reduce salt intake, manage stress, and consult a healthcare provider.</p>" : "<p style='color: var(--success);'>✅ Blood pressure is within normal range.</p>"}
-                ${lowSugarCount >= 1 ? "<p style='color: var(--error);'>🚨 Low blood sugar detected (<54 mg/dL). Consume fast-acting carbohydrates (e.g., juice, candy) and seek medical advice.</p>" : highSugarCount >= 1 ? "<p style='color: var(--error);'>🚨 High blood sugar detected (>180 mg/dL). Avoid sugary foods, monitor diet, and consult a doctor.</p>" : "<p style='color: var(--success);'>✅ Blood sugar levels are within normal range.</p>"}
-                ${highHeartRateCount >= 3 ? "<p style='color: var(--error);'>⚠️ High heart rate detected in 3 or more readings (>100 bpm). Avoid stimulants and consult a healthcare provider.</p>" : lowHeartRateCount >= 3 ? "<p style='color: var(--error);'>⚠️ Low heart rate detected in 3 or more readings (<60 bpm). Consult a healthcare provider.</p>" : "<p style='color: var(--success);'>✅ Heart rate is within normal range.</p>"}
-                ${weightChanges > 5 ? "<p style='color: var(--error);'>⚠️ Significant weight change detected (>5% change). Monitor diet and activity, and consult a healthcare provider.</p>" : "<p style='color: var(--success);'>✅ Weight appears stable.</p>"}
-                ${highTempCount >= 1 ? "<p style='color: var(--error);'>⚠️ High temperature detected (>37.2°C). Monitor for fever and consult a doctor.</p>" : lowTempCount >= 1 ? "<p style='color: var(--error);'>⚠️ Low temperature detected (<36.1°C). Keep warm and consult a healthcare provider.</p>" : "<p style='color: var(--success);'>✅ Temperature is within normal range.</p>"}
-            `;
+        let tempInsight = "";
+        const criticalTempCount = tempStatus.filter(s => s === "critical").length;
+        const lowTempCount = tempStatus.filter(s => s === "low").length;
+        const highTempCount = tempStatus.filter(s => s === "high").length;
+        if (criticalTempCount > 0) {
+            tempInsight = "<p style='color: var(--error);'>🚨 Critical temperature detected (<35°C or >38.5°C). Seek immediate medical attention.</p>";
+        } else if (lowTempCount >= recentVitals.length / 2) {
+            tempInsight = "<p style='color: var(--error);'>⚠️ Low temperature detected (<36.1°C) in most readings. Keep warm and consult a doctor.</p>";
+        } else if (highTempCount >= recentVitals.length / 2) {
+            tempInsight = "<p style='color: var(--error);'>⚠️ High temperature detected (>37.2°C) in most readings. Monitor for fever and consult a doctor.</p>";
+        } else {
+            tempInsight = "<p style='color: var(--success);'>✅ Temperature is within normal range (36.1–37.2°C).</p>";
+        }
 
-            const alerts = [];
-            if (criticalBPCount >= 1) alerts.push("Hypertensive crisis (BP ≥180/≥120 mmHg)");
-            if (lowSugarCount >= 1) alerts.push("Low blood sugar (<54 mg/dL)");
-            if (highSugarCount >= 1) alerts.push("High blood sugar (>180 mg/dL)");
-            if (highTempCount >= 1) alerts.push("High temperature (>37.2°C)");
-            if (lowTempCount >= 1) alerts.push("Low temperature (<36.1°C)");
-            if (alerts.length > 0) {
-                await sendSMS(`Health alert: ${alerts.join(", ")}. Please review your recent readings and consult a doctor immediately.`);
-            }
+        let weightInsight = "";
+        if (weightChanges > 5) {
+            weightInsight = "<p style='color: var(--error);'>⚠️ Significant weight change detected (>5% in recent readings). Monitor diet, activity, and consult a doctor.</p>";
+        } else {
+            weightInsight = "<p style='color: var(--success);'>✅ Weight appears stable.</p>";
+        }
+
+        insights.innerHTML += `
+            <h4>Vital Signs Analysis (Last ${recentVitals.length} Entries)</h4>
+            <p><strong>Average Blood Pressure:</strong> ${avgSystolic.toFixed(1)}/${avgDiastolic.toFixed(1)} mmHg (Normal: <120/<80 mmHg)</p>
+            <p><strong>Average Blood Sugar:</strong> ${avgSugar.toFixed(1)} mg/dL (Normal: 70–140 mg/dL)</p>
+            <p><strong>Average Heart Rate:</strong> ${avgHeartRate.toFixed(1)} bpm (Normal: 60–100 bpm)</p>
+            <p><strong>Average Temperature:</strong> ${avgTemp.toFixed(1)} °C (Normal: 36.1–37.2°C)</p>
+            <p><strong>Weight Change:</strong> ${weightChanges.toFixed(1)}% (Normal: <5% change)</p>
+            ${bpInsight}
+            ${sugarInsight}
+            ${heartRateInsight}
+            ${tempInsight}
+            ${weightInsight}
+        `;
+
+        // Send consolidated SMS for critical conditions
+        const alerts = [];
+        if (crisisBPCount > 0) alerts.push("Hypertensive crisis (BP ≥180/≥120 mmHg)");
+        if (criticalSugarCount > 0) alerts.push("Critical blood sugar (<54 or >250 mg/dL)");
+        if (criticalTempCount > 0) alerts.push("Critical temperature (<35°C or >38.5°C)");
+        if (alerts.length > 0 && userPhone) {
+            await sendSMS(`Health alert: ${alerts.join(", ")}. Seek immediate medical attention.`);
         }
 
         insights.innerHTML += `
             <h4>Recommendations</h4>
             <ul style="text-align: left;">
-                <li>Log vitals daily at consistent times to monitor trends effectively.</li>
-                <li>Maintain medication adherence above 80% to ensure treatment efficacy.</li>
-                <li>Consult your healthcare provider immediately if you experience symptoms like dizziness, chest pain, or severe fatigue.</li>
-                <li>Maintain a balanced diet, stay hydrated, and engage in regular physical activity (e.g., 30 min most days).</li>
-                <li>Monitor for sudden changes in vitals and seek medical advice if abnormalities persist.</li>
+                <li>Log vitals daily at consistent times to track trends accurately.</li>
+                <li>Maintain medication adherence above 80% for effective treatment.</li>
+                <li>Seek immediate medical attention for critical readings (e.g., BP ≥180/≥120, sugar <54 or >250, temp <35 or >38.5).</li>
+                <li>Maintain a balanced diet, stay hydrated, and engage in regular physical activity (30 min/day).</li>
+                <li>Consult your doctor if abnormal readings persist for more than 2–3 days.</li>
             </ul>
         `;
         gsap.from(insights, { duration: 0.5, y: 20, opacity: 0, ease: "power2.out" });
     }
+}
 
     function exportToPDF() {
         const { jsPDF } = window.jspdf;
