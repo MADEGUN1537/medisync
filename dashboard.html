@@ -765,12 +765,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (user) {
             userId = user.uid;
             try {
-                console.log('Attempting to fetch user profile for userId:', userId);
                 const userDoc = await getDoc(doc(db, "users", userId));
                 if (userDoc.exists()) {
                     userProfile = userDoc.data();
                     userPhone = userProfile.phoneNumber;
-                    console.log('User profile loaded:', userProfile);
                     updateProfileDisplay();
                 } else {
                     console.warn('User profile not found, creating default profile');
@@ -792,18 +790,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         } else {
-            console.log('No authenticated user, redirecting to login');
             window.location.href = 'login.html';
         }
     });
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(reg => {
-            console.log('Service Worker registered:', reg);
-        }).catch(err => {
-            console.error('Service Worker registration failed:', err);
-        });
-    }
 
     gsap.from(".header", { duration: 1, y: -50, opacity: 0, ease: "power2.out" });
     gsap.from(".container", { duration: 1, y: 50, opacity: 0, ease: "power2.out", delay: 0.2 });
