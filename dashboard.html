@@ -1660,7 +1660,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     insights.innerHTML = `
         <h3>Your Health Summary</h3>
-        <p>Based on recent data as of ${new Date().toLocaleDateString()}.</p>
+        <p>Based on all logged data as of ${new Date().toLocaleDateString()}.</p>
     `;
 
     // Medication Adherence
@@ -1682,40 +1682,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Vitals Analysis
     if (vitalsData.length > 0) {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const recentVitals = vitalsData.filter(v => new Date(v.timestamp) >= sevenDaysAgo).slice(-5);
-        if (recentVitals.length === 0) {
-            insights.innerHTML += `<p style="color: var(--error);">⚠️ No recent vitals. Log your vitals daily for better insights.</p>`;
+        const validVitals = vitalsData.filter(v => v.systolic != null && v.diastolic != null && v.sugar != null && v.heartRate != null && v.temp != null && v.weight != null);
+        if (validVitals.length === 0) {
+            insights.innerHTML += `<p style="color: var(--error);">⚠️ No valid vitals data. Please log complete vitals entries.</p>`;
             return;
         }
 
         const avg = {
-            systolic: recentVitals.reduce((sum, v) => sum + v.systolic, 0) / recentVitals.length,
-            diastolic: recentVitals.reduce((sum, v) => sum + v.diastolic, 0) / recentVitals.length,
-            sugar: recentVitals.reduce((sum, v) => sum + v.sugar, 0) / recentVitals.length,
-            heartRate: recentVitals.reduce((sum, v) => sum + v.heartRate, 0) / recentVitals.length,
-            temp: recentVitals.reduce((sum, v) => sum + v.temp, 0) / recentVitals.length,
-            weightChange: recentVitals.length > 1 ? Math.abs(recentVitals[recentVitals.length - 1].weight - recentVitals[0].weight) / recentVitals[0].weight * 100 : 0
+            systolic: validVitals.reduce((sum, v) => sum + Number(v.systolic), 0) / validVitals.length,
+            diastolic: validVitals.reduce((sum, v) => sum + Number(v.diastolic), 0) / validVitals.length,
+            sugar: validVitals.reduce((sum, v) => sum + Number(v.sugar), 0) / validVitals.length,
+            heartRate: validVitals.reduce((sum, v) => sum + Number(v.heartRate), 0) / validVitals.length,
+            temp: validVitals.reduce((sum, v) => sum + Number(v.temp), 0) / validVitals.length,
+            weightChange: validVitals.length > 1 ? Math.abs(validVitals[validVitals.length - 1].weight - validVitals[0].weight) / validVitals[0].weight * 100 : 0
         };
 
         const status = {
-            bp: recentVitals.some(v => v.systolic >= 180 || v.diastolic >= 120) ? "urgent" :
-                recentVitals.some(v => v.systolic >= 130 || v.diastolic >= 80) ? "warning" : "good",
-            sugar: recentVitals.some(v => v.sugar < 54 || v.sugar > 250) ? "urgent" :
-                recentVitals.some(v => v.sugar < 70 || v.sugar > 140) ? "warning" : "good",
-            heartRate: recentVitals.some(v => v.heartRate < 60 || v.heartRate > 100) ? "warning" : "good",
-            temp: recentVitals.some(v => v.temp < 35 || v.temp > 38.5) ? "urgent" :
-                recentVitals.some(v => v.temp < 36.1 || v.temp > 37.2) ? "warning" : "good",
+            bp: validVitals.some(v => Number(v.systolic) >= 180 || Number(v.diastolic) >= 120) ? "urgent" :
+                validVitals.some(v => Number(v.systolic) < 90 && Number(v.diastolic) < 60) ? "low" :
+                validVitals.some(v => Number(v.systolic) >= 130 || Number(v.diastolic) >= 80) ? "warning" :
+                validVitals.some(v => Number(v.systolic) >= 120 && Number(v.systolic) <= 129 && Number(v.diastolic) < 80) ? "elevated" : "good",
+            sugar: validVitals.some(v => Number(v.sugar) < 54 || Number(v.sugar) > 250) ? "urgent" :
+                validVitals.some(v => Number(v.sugar) < 70 || Number(v.sugar) > 140) ? "warning" : "good",
+            heartRate: validVitals.some(v => Number(v.heartRate) < 60 || Number(v.heartRate) > 100) ? "warning" : "good",
+            temp: validVitals.some(v => Number(v.temp) < 35 || Number(v.temp) > 38.5) ? "urgent" :
+                validVitals.some(v => Number(v.temp) < 36.1 || Number(v.temp) > 37.2) ? "warning" : "good",
             weight: avg.weightChange > 5 ? "warning" : "good"
         };
 
         insights.innerHTML += `
-            <h4>Your Vitals (Last ${recentVitals.length} Entries)</h4>
-            <p><strong>Blood Pressure:</strong> ${avg.systolic.toFixed(1)}/${avg.diastolic.toFixed(1)} mmHg (Normal: <120/<80)</p>
-            <p style="color: ${status.bp === 'urgent' ? 'var(--error)' : status.bp === 'warning' ? '#e67e22' : 'var(--success)'};">
+            <h4>Your Vitals (All ${validVitals.length} Valid Entries)</h4>
+            <p><strong>Blood Pressure:</strong> ${avg.systolic.toFixed(1)}/${avg.diastolic.toFixed(1)} mmHg (Normal: <120/<80, Low: <90/<60)</p>
+            <p style="color: ${status.bp === 'urgent' || status.bp === 'low' ? 'var(--error)' : status.bp === 'warning' ? '#e67e22' : status.bp === 'elevated' ? '#f1c40f' : 'var(--success)'};">
                 ${status.bp === "urgent" ? "🚨 High blood pressure! See a doctor now." :
-                  status.bp === "warning" ? "⚠️ Blood pressure is high. Watch your diet and stress." : "✅ Blood pressure looks good!"}
+                  status.bp === "low" ? "🚨 Low blood pressure! Rest and see a doctor if you feel dizzy or faint." :
+                  status.bp === "warning" ? "⚠️ Blood pressure is high. Watch your diet and stress." :
+                  status.bp === "elevated" ? "⚠️ Blood pressure is elevated. Monitor closely and consider lifestyle changes." : "✅ Blood pressure looks good!"}
             </p>
             <p><strong>Blood Sugar:</strong> ${avg.sugar.toFixed(1)} mg/dL (Normal: 70–140)</p>
             <p style="color: ${status.sugar === 'urgent' ? 'var(--error)' : status.sugar === 'warning' ? '#e67e22' : 'var(--success)'};">
@@ -1746,7 +1748,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         const alerts = [];
-        if (status.bp === "urgent") alerts.push("High blood pressure (≥180/≥120 mmHg)");
+        if (status.bp === "urgent" || status.bp === "low") alerts.push(status.bp === "urgent" ? "High blood pressure (≥180/≥120 mmHg)" : "Low blood pressure (<90/<60 mmHg)");
         if (status.sugar === "urgent") alerts.push("Blood sugar too low/high (<54 or >250 mg/dL)");
         if (status.temp === "urgent") alerts.push("Temperature too low/high (<35 or >38.5°C)");
         if (alerts.length > 0 && userPhone) {
@@ -1756,87 +1758,85 @@ document.addEventListener("DOMContentLoaded", () => {
         gsap.from(insights, { duration: 0.5, y: 20, opacity: 0, ease: "power2.out" });
     }
 }
-
     function exportToPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.setFont("helvetica", "bold");
-        doc.text("💊Medisync Health Report", 10, 10);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 10, 20);
-        doc.text("Vitals Log:", 10, 30);
-        let yPos = 40;
-        const vitalsTableData = vitalsData.map(v => [
-            new Date(v.timestamp).toLocaleString(),
-            v.systolic.toString(),
-            v.diastolic.toString(),
-            v.sugar.toString(),
-            v.heartRate.toString(),
-            v.weight.toString(),
-            v.temp.toString()
-        ]);
-        doc.autoTable({
-            startY: yPos,
-            head: [['Date', 'Systolic BP (mmHg)', 'Diastolic BP (mmHg)', 'Blood Sugar (mg/dL)', 'Heart Rate (bpm)', 'Weight (kg)', 'Temperature (°C)']],
-            body: vitalsTableData,
-            theme: 'grid',
-            styles: { font: 'helvetica', fontSize: 8, textColor: [51, 58, 64] },
-            headStyles: { fillColor: [76, 181, 171], textColor: [255, 255, 255], font: 'helvetica', fontStyle: 'bold' },
-            columnStyles: {
-                0: { cellWidth: 40 },
-                1: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[1]) > 130) ? [231, 76, 60] : [51, 58, 64] },
-                2: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[2]) > 80) ? [231, 76, 60] : [51, 58, 64] },
-                3: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[3]) > 140) ? [231, 76, 60] : [51, 58, 64] },
-                4: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[4]) > 100 || Number(row[4]) < 60) ? [231, 76, 60] : [51, 58, 64] },
-                5: { cellWidth: 25, halign: 'center' },
-                6: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[6]) > 37.2 || Number(row[6]) < 36.1) ? [231, 76, 60] : [51, 58, 64] }
-            },
-            margin: { left: 10, right: 10 }
-        });
-        yPos = doc.lastAutoTable.finalY + 10;
-        doc.text("Medications:", 10, yPos);
-        yPos += 10;
-        const tableData = medications.map(med => {
-            const timesDisplay = Array.isArray(med.times) && med.times.length > 0 && med.times.every(time => typeof time === 'string') ? med.times.join(", ") : "No valid times";
-            const startDate = new Date(med.createdAt || new Date());
-            const endDate = new Date(med.endDate);
-            const totalDuration = med.frequency === "daily" ? med.duration : med.duration * 7;
-            const daysPassed = Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24));
-            const daysRemaining = Math.max(0, totalDuration - daysPassed);
-            const unit = med.frequency === "daily" ? "days" : "weeks";
-            const remainingText = daysRemaining > 0 ? `${daysRemaining} ${unit} remaining` : "Completed";
-            const statusText = med.status.charAt(0).toUpperCase() + med.status.slice(1);
-            return [
-                med.name,
-                med.dosage,
-                med.frequency.charAt(0).toUpperCase() + med.frequency.slice(1),
-                timesDisplay,
-                statusText,
-                remainingText,
-                med.missedDoses || 0
-            ];
-        });
-        doc.autoTable({
-            startY: yPos,
-            head: [['Name', 'Dosage', 'Frequency', 'Times', 'Status', 'Remaining', 'Missed Doses']],
-            body: tableData,
-            theme: 'grid',
-            styles: { font: 'helvetica', fontSize: 8, textColor: [51, 58, 64] },
-            headStyles: { fillColor: [76, 181, 171], textColor: [255, 255, 255], font: 'helvetica', fontStyle: 'bold' },
-            columnStyles: {
-                0: { cellWidth: 30 },
-                1: { cellWidth: 25 },
-                2: { cellWidth: 20 },
-                3: { cellWidth: 40 },
-                4: { cellWidth: 25, halign: 'center' },
-                5: { cellWidth: 30 },
-                6: { cellWidth: 20, halign: 'center', textColor: tableData.some(row => row[6] > 0) ? [231, 76, 60] : [51, 58, 64] }
-            },
-            margin: { left: 10, right: 10 }
-        });
-        doc.save("Medisync_Health_Report.pdf");
-    }
-
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFont("helvetica", "bold");
+    doc.text("💊Medisync Health Report", 10, 10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 10, 20);
+    doc.text("Vitals Log:", 10, 30);
+    let yPos = 40;
+    const vitalsTableData = vitalsData.map(v => [
+        new Date(v.timestamp).toLocaleString(),
+        v.systolic.toString(),
+        v.diastolic.toString(),
+        v.sugar.toString(),
+        v.heartRate.toString(),
+        v.weight.toString(),
+        v.temp.toString()
+    ]);
+    doc.autoTable({
+        startY: yPos,
+        head: [['Date', 'Systolic BP (mmHg)', 'Diastolic BP (mmHg)', 'Blood Sugar (mg/dL)', 'Heart Rate (bpm)', 'Weight (kg)', 'Temperature (°C)']],
+        body: vitalsTableData,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 8, textColor: [51, 58, 64] },
+        headStyles: { fillColor: [76, 181, 171], textColor: [255, 255, 255], font: 'helvetica', fontStyle: 'bold' },
+        columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[1]) >= 130) ? [231, 76, 60] : [51, 58, 64] },
+            2: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[2]) >= 80) ? [231, 76, 60] : [51, 58, 64] },
+            3: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[3]) < 54 || Number(row[3]) > 250) ? [231, 76, 60] : [51, 58, 64] },
+            4: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[4]) < 60 || Number(row[4]) > 100) ? [231, 76, 60] : [51, 58, 64] },
+            5: { cellWidth: 25, halign: 'center' },
+            6: { cellWidth: 25, halign: 'center', textColor: vitalsTableData.some(row => Number(row[6]) < 36.1 || Number(row[6]) > 37.2) ? [231, 76, 60] : [51, 58, 64] }
+        },
+        margin: { left: 10, right: 10 }
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
+    doc.text("Medications:", 10, yPos);
+    yPos += 10;
+    const tableData = medications.map(med => {
+        const timesDisplay = Array.isArray(med.times) && med.times.length > 0 && med.times.every(time => typeof time === 'string') ? med.times.join(", ") : "No valid times";
+        const startDate = new Date(med.createdAt || new Date());
+        const endDate = new Date(med.endDate);
+        const totalDuration = med.frequency === "daily" ? med.duration : med.duration * 7;
+        const daysPassed = Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.max(0, totalDuration - daysPassed);
+        const unit = med.frequency === "daily" ? "days" : "weeks";
+        const remainingText = daysRemaining > 0 ? `${daysRemaining} ${unit} remaining` : "Completed";
+        const statusText = med.status.charAt(0).toUpperCase() + med.status.slice(1);
+        return [
+            med.name,
+            med.dosage,
+            med.frequency.charAt(0).toUpperCase() + med.frequency.slice(1),
+            timesDisplay,
+            statusText,
+            remainingText,
+            med.missedDoses || 0
+        ];
+    });
+    doc.autoTable({
+        startY: yPos,
+        head: [['Name', 'Dosage', 'Frequency', 'Times', 'Status', 'Remaining', 'Missed Doses']],
+        body: tableData,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 8, textColor: [51, 58, 64] },
+        headStyles: { fillColor: [76, 181, 171], textColor: [255, 255, 255], font: 'helvetica', fontStyle: 'bold' },
+        columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 25, halign: 'center' },
+            5: { cellWidth: 30 },
+            6: { cellWidth: 20, halign: 'center', textColor: tableData.some(row => row[6] > 0) ? [231, 76, 60] : [51, 58, 64] }
+        },
+        margin: { left: 10, right: 10 }
+    });
+    doc.save("Medisync_Health_Report.pdf");
+}
     document.getElementById("export-pdf-btn").addEventListener("click", exportToPDF);
 
     async function sendSMS(message) {
