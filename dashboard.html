@@ -1649,7 +1649,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     insights.innerHTML = `
         <h3>Your Health Summary</h3>
-        <p>Based on all logged data as of ${new Date().toLocaleDateString()}.</p>
+        <p>Based on your latest vitals as of ${new Date().toLocaleDateString()}.</p>
     `;
 
     // Medication Adherence
@@ -1674,75 +1674,74 @@ document.addEventListener("DOMContentLoaded", () => {
         const validVitals = vitalsData.filter(v => v.systolic != null && v.diastolic != null && v.sugar != null && v.heartRate != null && v.temp != null && v.weight != null);
         if (validVitals.length === 0) {
             insights.innerHTML += `<p style="color: var(--error);">⚠️ No valid vitals data. Please log complete vitals entries.</p>`;
+            if (userPhone) {
+                await sendSMS(`Please log your vitals in MediSync. No valid entries found.`);
+            }
             return;
         }
 
-        const avg = {
-            systolic: validVitals.reduce((sum, v) => sum + Number(v.systolic), 0) / validVitals.length,
-            diastolic: validVitals.reduce((sum, v) => sum + Number(v.diastolic), 0) / validVitals.length,
-            sugar: validVitals.reduce((sum, v) => sum + Number(v.sugar), 0) / validVitals.length,
-            heartRate: validVitals.reduce((sum, v) => sum + Number(v.heartRate), 0) / validVitals.length,
-            temp: validVitals.reduce((sum, v) => sum + Number(v.temp), 0) / validVitals.length,
-            weightChange: validVitals.length > 1 ? Math.abs(validVitals[validVitals.length - 1].weight - validVitals[0].weight) / validVitals[0].weight * 100 : 0
-        };
+        // Sort by timestamp to get the latest entry
+        const latestVital = validVitals.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+        // Check if latest vitals is older than 2 weeks (14 days)
+        const twoWeeksAgo = new Date();
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+        if (new Date(latestVital.timestamp) < twoWeeksAgo && userPhone) {
+            await sendSMS(`Please log your vitals in MediSync. It’s been over 2 weeks!`);
+        }
+
+        const weightChange = validVitals.length > 1 ? 
+            Math.abs(validVitals[validVitals.length - 1].weight - validVitals[0].weight) / validVitals[0].weight * 100 : 0;
 
         const status = {
-            bp: validVitals.some(v => Number(v.systolic) >= 180 || Number(v.diastolic) >= 120) ? "urgent" :
-                validVitals.some(v => Number(v.systolic) < 90 && Number(v.diastolic) < 60) ? "low" :
-                validVitals.some(v => Number(v.systolic) >= 130 || Number(v.diastolic) >= 80) ? "warning" :
-                validVitals.some(v => Number(v.systolic) >= 120 && Number(v.systolic) <= 129 && Number(v.diastolic) < 80) ? "elevated" : "good",
-            sugar: validVitals.some(v => Number(v.sugar) < 54 || Number(v.sugar) > 250) ? "urgent" :
-                validVitals.some(v => Number(v.sugar) < 70 || Number(v.sugar) > 140) ? "warning" : "good",
-            heartRate: validVitals.some(v => Number(v.heartRate) < 60 || Number(v.heartRate) > 100) ? "warning" : "good",
-            temp: validVitals.some(v => Number(v.temp) < 35 || Number(v.temp) > 38.5) ? "urgent" :
-                validVitals.some(v => Number(v.temp) < 36.1 || Number(v.temp) > 37.2) ? "warning" : "good",
-            weight: avg.weightChange > 5 ? "warning" : "good"
+            bp: Number(latestVital.systolic) >= 180 || Number(latestVital.diastolic) >= 120 ? "urgent" :
+                Number(latestVital.systolic) < 90 && Number(latestVital.diastolic) < 60 ? "low" :
+                Number(latestVital.systolic) >= 130 || Number(latestVital.diastolic) >= 80 ? "warning" :
+                Number(latestVital.systolic) >= 120 && Number(latestVital.systolic) <= 129 && Number(latestVital.diastolic) < 80 ? "elevated" : "good",
+            sugar: Number(latestVital.sugar) < 54 || Number(latestVital.sugar) > 250 ? "urgent" :
+                Number(latestVital.sugar) < 70 || Number(latestVital.sugar) > 140 ? "warning" : "good",
+            heartRate: Number(latestVital.heartRate) < 60 || Number(latestVital.heartRate) > 100 ? "warning" : "good",
+            temp: Number(latestVital.temp) < 35 || Number(latestVital.temp) > 38.5 ? "urgent" :
+                Number(latestVital.temp) < 36.1 || Number(latestVital.temp) > 37.2 ? "warning" : "good",
+            weight: weightChange > 5 ? "warning" : "good"
         };
 
         insights.innerHTML += `
-            <h4>Your Vitals (All ${validVitals.length} Valid Entries)</h4>
-            <p><strong>Blood Pressure:</strong> ${avg.systolic.toFixed(1)}/${avg.diastolic.toFixed(1)} mmHg (Normal: <120/<80, Low: <90/<60)</p>
+            <h4>Your Vitals (Latest Entry, Weight Change Over ${validVitals.length} Entries)</h4>
+            <p><strong>Blood Pressure:</strong> ${Number(latestVital.systolic).toFixed(1)}/${Number(latestVital.diastolic).toFixed(1)} mmHg (Normal: <120/<80, Low: <90/<60)</p>
             <p style="color: ${status.bp === 'urgent' || status.bp === 'low' ? 'var(--error)' : status.bp === 'warning' ? '#e67e22' : status.bp === 'elevated' ? '#f1c40f' : 'var(--success)'};">
-                ${status.bp === "urgent" ? "🚨 High blood pressure! See a doctor now." :
+                ${status.bp === "urgent" ? "🚨 High blood pressure! See a doctor immediately." :
                   status.bp === "low" ? "🚨 Low blood pressure! Rest and see a doctor if you feel dizzy or faint." :
-                  status.bp === "warning" ? "⚠️ Blood pressure is high. Watch your diet and stress." :
-                  status.bp === "elevated" ? "⚠️ Blood pressure is elevated. Monitor closely and consider lifestyle changes." : "✅ Blood pressure looks good!"}
+                  status.bp === "warning" ? "⚠️ Blood pressure is high. Reduce salt, manage stress, and consult your doctor." :
+                  status.bp === "elevated" ? "⚠️ Blood pressure is elevated. Monitor daily and consider lifestyle changes." : "✅ Blood pressure is normal!"}
             </p>
-            <p><strong>Blood Sugar:</strong> ${avg.sugar.toFixed(1)} mg/dL (Normal: 70–140)</p>
+            <p><strong>Blood Sugar:</strong> ${Number(latestVital.sugar).toFixed(1)} mg/dL (Normal: 70–140)</p>
             <p style="color: ${status.sugar === 'urgent' ? 'var(--error)' : status.sugar === 'warning' ? '#e67e22' : 'var(--success)'};">
-                ${status.sugar === "urgent" ? "🚨 Blood sugar is too low or high! Eat something sweet or avoid sugar, then see a doctor." :
-                  status.sugar === "warning" ? "⚠️ Blood sugar is off. Check your diet and talk to a doctor." : "✅ Blood sugar looks good!"}
+                ${status.sugar === "urgent" ? "🚨 Blood sugar is critical! For low, eat something sweet; for high, avoid sugar. See a doctor immediately." :
+                  status.sugar === "warning" ? "⚠️ Blood sugar is off. Check your diet and consult your doctor." : "✅ Blood sugar is normal!"}
             </p>
-            <p><strong>Heart Rate:</strong> ${avg.heartRate.toFixed(1)} bpm (Normal: 60–100)</p>
+            <p><strong>Heart Rate:</strong> ${Number(latestVital.heartRate).toFixed(1)} bpm (Normal: 60–100)</p>
             <p style="color: ${status.heartRate === 'warning' ? '#e67e22' : 'var(--success)'};">
-                ${status.heartRate === "warning" ? "⚠️ Heart rate is too low or high. Rest and check with a doctor if it continues." : "✅ Heart rate looks good!"}
+                ${status.heartRate === "warning" ? "⚠️ Heart rate is abnormal. Rest and consult a doctor if it persists." : "✅ Heart rate is normal!"}
             </p>
-            <p><strong>Temperature:</strong> ${avg.temp.toFixed(1)} °C (Normal: 36.1–37.2)</p>
+            <p><strong>Temperature:</strong> ${Number(latestVital.temp).toFixed(1)} °C (Normal: 36.1–37.2)</p>
             <p style="color: ${status.temp === 'urgent' ? 'var(--error)' : status.temp === 'warning' ? '#e67e22' : 'var(--success)'};">
-                ${status.temp === "urgent" ? "🚨 Temperature is too low or high! See a doctor now." :
-                  status.temp === "warning" ? "⚠️ Temperature is off. Keep warm or cool down, and check with a doctor." : "✅ Temperature looks good!"}
+                ${status.temp === "urgent" ? "🚨 Temperature is critical! Keep warm or cool down and see a doctor immediately." :
+                  status.temp === "warning" ? "⚠️ Temperature is off. Monitor and consult a doctor if it persists." : "✅ Temperature is normal!"}
             </p>
-            <p><strong>Weight Change:</strong> ${avg.weightChange.toFixed(1)}% (Normal: <5%)</p>
+            <p><strong>Weight Change:</strong> ${weightChange.toFixed(1)}% (Normal: <5%)</p>
             <p style="color: ${status.weight === 'warning' ? '#e67e22' : 'var(--success)'};">
-                ${status.weight === "warning" ? "⚠️ Weight changed a lot. Check your diet and activity, and talk to a doctor." : "✅ Weight is stable!"}
+                ${status.weight === "warning" ? "⚠️ Significant weight change. Review diet and activity, and consult a doctor." : "✅ Weight is stable!"}
             </p>
             <h4>What to Do Next</h4>
             <ul style="text-align: left;">
-                <li>Log vitals every day to keep track.</li>
-                <li>Take meds on time to stay healthy.</li>
-                <li>If you see 🚨, call a doctor right away.</li>
-                <li>If you see ⚠️, watch for a few days and talk to a doctor if it doesn’t improve.</li>
-                <li>Eat well, drink water, and move for 30 minutes daily.</li>
+                <li>Log vitals daily to track your health.</li>
+                <li>Take medications as prescribed.</li>
+                <li>If you see 🚨, seek medical attention immediately.</li>
+                <li>If you see ⚠️, monitor for a few days and consult a doctor if no improvement.</li>
+                <li>Maintain a balanced diet, stay hydrated, and exercise for 30 minutes daily.</li>
             </ul>
         `;
-
-        const alerts = [];
-        if (status.bp === "urgent" || status.bp === "low") alerts.push(status.bp === "urgent" ? "High blood pressure (≥180/≥120 mmHg)" : "Low blood pressure (<90/<60 mmHg)");
-        if (status.sugar === "urgent") alerts.push("Blood sugar too low/high (<54 or >250 mg/dL)");
-        if (status.temp === "urgent") alerts.push("Temperature too low/high (<35 or >38.5°C)");
-        if (alerts.length > 0 && userPhone) {
-            await sendSMS(`Urgent: ${alerts.join(", ")}. See a doctor now.`);
-        }
 
         gsap.from(insights, { duration: 0.5, y: 20, opacity: 0, ease: "power2.out" });
     }
