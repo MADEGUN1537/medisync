@@ -693,9 +693,9 @@
                                     <option value="+44">+44 (UK)</option>
                                     <option value="+91">+91 (IN)</option>
                                 </select>
-                                <input type="tel" id="phone-number" name="phone-number" placeholder="7034202953" required>
+                                <input type="tel" id="phone-number" name="phone-number" placeholder="7123456789" required>
                             </div>
-                            <p class="error-message" id="phone-number-error">Please enter a valid phone number (e.g., +2347034202953).</p>
+                            <p class="error-message" id="phone-number-error">Please enter a valid phone number (e.g., +2347123456789).</p>
                         </div>
                     </div>
                     <div id="password-field" class="field-group" style="display: none;">
@@ -887,7 +887,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const isActive = f === (field === "phoneNumber" ? "phone-field" : `${field}-field`);
             fieldElement.classList.toggle("active", isActive);
             fieldElement.style.display = isActive ? "grid" : "none";
-            console.log(`Field ${f} display set to: ${fieldElement.style.display}`);
         } else {
             console.error(`Field element ${f} not found in DOM`);
         }
@@ -935,7 +934,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                     countryCode === '+1' ? '1234567890' :
                                     countryCode === '+44' ? '7912345678' :
                                     countryCode === '+91' ? '9876543210' : 'Enter phone number';
-            console.log('Phone placeholder updated to:', phoneInput.placeholder);
         }
     };
     if (field === "phoneNumber" && phoneInput && countryCodeSelect) {
@@ -947,20 +945,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Focus only the active field’s input if its container is visible
     if (field === "name" && firstNameInput && document.getElementById("name-field").style.display === "grid") {
         firstNameInput.focus();
-        console.log('Focused on first name input');
     } else if (field === "email" && emailInput && document.getElementById("email-field").style.display === "grid") {
         emailInput.focus();
-        console.log('Focused on email input');
+        
     } else if (field === "phoneNumber" && phoneInput && document.getElementById("phone-field").style.display === "grid") {
         phoneInput.focus();
-        console.log('Focused on phone number input');
-        // Debug phone field visibility
-        console.log('Phone field visibility:', document.getElementById("phone-field").offsetParent !== null);
-        console.log('Phone input computed style:', window.getComputedStyle(phoneInput).display);
-        console.log('Country code select computed style:', window.getComputedStyle(countryCodeSelect).display);
     } else if (field === "password" && passwordInput && document.getElementById("password-field").style.display === "grid") {
         passwordInput.focus();
-        console.log('Focused on password input');
     } else {
         console.log('No focus applied; active field inputs may be hidden or unavailable');
     }
@@ -1414,7 +1405,7 @@ document.addEventListener("DOMContentLoaded", () => {
             scheduleOfflineReminders();
         } catch (error) {
             const errorMessage = document.getElementById("medication-error");
-            errorMessage.textContent = `Failed to update medication status: ${error.message}`;
+            errorMessage.textContent = `Failed to update medication status`;
             errorMessage.style.display = "block";
             gsap.from(errorMessage, { duration: 0.5, opacity: 0, y: 10, ease: "power2.out" });
             showToast("Failed to mark dose", true);
@@ -1489,9 +1480,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Send reminder at 5 min before or 5 min after, if not already sent
                 if ((now >= windowStartBefore && now <= windowEndBefore || now >= windowStartAfter && now <= windowEndAfter) && !med.remindedDoses.includes(reminderKey)) {
-                    const message = `Time to take ${med.name} (${med.dosage}) at ${time}. Reply 'Yes' to confirm, 'No' to skip.`;
+                    const message = `MEDISYNC: Time to take ${med.name} (${med.dosage}) at ${time}. Reply 'Yes' to confirm, 'No' to skip.`;
                     await sendSMS(message);
-                    console.log('Sending SMS:', { to: userPhone, body: message });
                     med.remindedDoses.push(reminderKey);
                     med.lastReminder = now.toISOString();
                     await setDoc(doc(db, "medications", med.id), med).catch(err => console.error('Error saving remindedDoses:', err));
@@ -1622,7 +1612,7 @@ document.addEventListener("DOMContentLoaded", () => {
             gsap.from(".vitals-form", { duration: 0.5, scale: 0.95, opacity: 0, ease: "power2.out" });
             showToast("Vitals logged successfully");
         } catch (error) {
-            showToast("Failed to log vitals: " + error.message, true);
+            showToast("Failed to log vitals", true);
         }
     });
 
@@ -1829,13 +1819,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function sendSMS(message) {
         if (!userPhone) {
-            console.error("No phone number available for SMS");
             showToast("No phone number available for SMS", true);
             return;
         }
 
         if (!/^\+\d{10,15}$/.test(userPhone)) {
-            console.error("Invalid phone number format:", userPhone);
             showToast("Invalid phone number format", true);
             return;
         }
@@ -1859,11 +1847,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(data.message || 'Failed to send SMS');
             }
 
-            console.log('SMS sent successfully:', data.sid);
+            console.log('SMS sent successfully');
             showToast("SMS sent successfully");
         } catch (error) {
-            console.error('Error sending SMS:', error);
-            showToast(`Failed to send SMS: ${error.message}`, true);
+            console.error('Error sending SMS');
+            showToast(`Failed to send SMS`, true);
         }
     }
 
@@ -1872,7 +1860,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if ('Notification' in window && Notification.permission !== 'denied') {
         Notification.requestPermission().then(permission => {
             if (permission === 'granted') {
-                console.log('Notification permission granted');
+                console.log('');
             }
         });
     }
@@ -1931,5 +1919,6 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
 
 
